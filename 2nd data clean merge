@@ -1,0 +1,375 @@
+
+# coding: utf-8
+
+# In[1]:
+
+
+'''Purpose of this script is to clean the permanent headcount data dump that provides permanent employee, 
+contractor, daily expat, functional, hourly and partner roster'''
+
+import pandas as pd
+import numpy as np
+import re
+pd.options.display.max_rows = 4000 # allow output of 4000 rows
+pd.options.display.max_columns = 70
+
+
+# In[2]:
+
+
+hc = pd.read_csv('HeadcountCleaner-Oct17.csv')
+#hc.head()
+
+
+# In[8]:
+
+
+country = pd.read_csv('country_abb.csv')
+country.head()
+
+
+# In[9]:
+
+
+heads = hc.groupby('city',as_index=False)['uid'].count()
+
+
+# In[10]:
+
+
+hc.city = hc.city.str.replace('Universal City','Los Angeles')
+
+
+# In[11]:
+
+
+adv = pd.read_csv('GRIC_Advisories_101217.csv')
+adv.head()
+
+
+# In[13]:
+
+
+hc.groupby(['hruserpersontype','industrygroup'])['uid'].count()
+
+
+# In[5]:
+
+
+hc.groupby(['hruserpersontype'])['uid'].count()
+
+
+# In[3]:
+
+# query row by two columns
+#hc.query('(industrygroup == "") & (hruserpersontype == "Employee")')
+
+
+# In[6]:
+
+
+### create df where hruserpersontype is Contractor and Employee ###
+#######################################################################
+hc1 = hc[hc.hruserpersontype.isin(["Contractor","Employee"])].reset_index(drop=True)
+#hc1.head()
+
+
+# In[7]:
+
+
+hc1.to_csv('EmployeeContractor_headcount_102617.csv',index=False)
+
+
+# In[141]:
+
+
+hc_city = hc1.groupby(['city','hruserpersontype'])['uid'].count()
+
+
+# In[142]:
+
+
+hc_city = hc1.loc[:,['city','hruserpersontype']]
+hc_city.is_copy=False
+hc_city = pd.DataFrame(hc_city)
+hc_city.head()
+
+
+# In[143]:
+
+
+hc_city = pd.pivot_table(hc_city,index='city', columns='hruserpersontype',aggfunc=len,fill_value=0)
+
+
+# In[144]:
+
+
+hc_city['City'] = hc_city.index 
+
+
+# In[179]:
+
+
+hc_city.City = hc_city.City.str.replace('Rio De Janeiro','Rio de Janeiro')
+
+
+# In[180]:
+
+
+hc_city.head()
+
+
+# In[173]:
+
+
+# database style df merging. left join on City key
+adv_new = pd.merge(adv,hc_city,how='left',on='City')
+
+
+# In[147]:
+
+
+hc_country = hc1.groupby(['country','hruserpersontype'])['uid'].count()
+hc_country = hc1.loc[:,['country','hruserpersontype']]
+hc_country.is_copy=False
+hc_country = pd.DataFrame(hc_country)
+hc_country = pd.pivot_table(hc_country,index='country',columns='hruserpersontype',aggfunc=len, fill_value=0)
+
+
+# In[148]:
+
+
+hc_country['Country'] = hc_country.index
+hc_country.head()
+
+
+# In[149]:
+
+
+hc_country = hc_country.rename(columns={'Country': 'ALPHA-2 Code'})
+
+
+# In[170]:
+
+
+country_abb = pd.read_csv('country_abb.csv')
+country_abb.head()
+
+
+# In[171]:
+
+
+hc_country1 = pd.merge(hc_country,country_abb,how='left', on='ALPHA-2 Code')
+hc_country1.head()
+
+
+# In[172]:
+
+
+hc_col = list(hc_country1.columns)[4:]
+hc_country1.drop(hc_col,axis=1,inplace=True)
+hc_country1.head()
+
+
+# In[26]:
+
+
+adv_new = pd.merge(adv_new, hc_country1, how='left',on='Country')
+adv_new.head()
+
+
+# In[27]:
+
+
+# fill Nan values in Contractor and Employee columns with the mapped Contractor and Employee cols
+adv_new.Contractor_x.fillna(adv_new.Contractor_y, inplace=True)
+adv_new.Employee_x.fillna(adv_new.Employee_y, inplace=True)
+adv_new.head()
+
+
+# In[28]:
+
+
+col = list(adv_new.columns)[14:]
+adv_new.drop(col, axis=1, inplace=True)
+adv_new.head()
+
+
+# In[29]:
+
+
+adv_new.rename(columns={'Contractor_x':'Contractor', 'Employee_x':'Employee'}, inplace=True)
+
+
+# In[30]:
+
+
+adv_new.isnull().sum()
+
+
+# In[125]:
+
+
+adv_new.to_csv('GRIC_Advisories_102617.csv',index=False,date_format='mm/dd/yyyy')
+
+
+# In[58]:
+
+
+advisor = pd.read_csv('GRIC_Advisories_102617.csv')
+advisor.head()
+
+
+# In[59]:
+
+
+advisor.isnull().sum()
+
+
+# In[63]:
+
+
+# assign New York sate to rows with New York city
+advisor['State'] = np.where(advisor.City == 'New York', 'New York', advisor.State)
+advisor.head()              
+
+
+# In[68]:
+
+
+# confirm that New York city is mapped to New York state 
+advisor.loc[advisor.City == 'New York', 'State'] == 'New York'
+
+
+# In[67]:
+
+
+advisor[advisor.isnull().any(axis=1)]
+
+
+# In[95]:
+
+
+advisor = pd.read_csv('GRIC_Advisories_102617.csv')
+
+
+# In[100]:
+
+
+advisor.loc[(advisor['State'].isnull()) & (advisor.City == 'Washington D.C.'),'State'] = 'Washington D.C.'
+
+
+# In[107]:
+
+
+advisor.loc[(advisor.State.isnull()) & (advisor.City == 'Los Angeles')|(advisor.City=='San Francisco'),'State'] = 'California'
+
+
+# In[110]:
+
+
+advisor.loc[(advisor.City == 'San Antonio')|(advisor.City == 'Dallas')|(advisor.City == 'Houston'),'State']='Texas'
+
+
+# In[114]:
+
+
+advisor.loc[(advisor.City=='Philadelphia'),'State']='Pennsylvania'
+
+
+# In[116]:
+
+
+advisor.loc[(advisor.City=='Chicago'),'State']='Illinois'
+
+
+# In[117]:
+
+
+advisor.loc[(advisor.City=='Seattle'),'State']='Washington'
+
+
+# In[120]:
+
+
+city_map = [
+    (advisor.City == 'Pittsburgh'),
+    (advisor.City == 'Denver'),
+    (advisor.City == 'Nashville'),
+    (advisor.City == 'Baltimore'),
+    (advisor.City == 'Amarillo'),
+    (advisor.City == 'Orlando'),
+    (advisor.City == 'Atlanta'),
+    (advisor.City == 'San Diego'),
+    (advisor.City == 'Miami'),
+    (advisor.City == 'New Haven'),
+    (advisor.City == 'Cleveland'),
+    (advisor.City == 'Baton Rouge')
+]
+state_map = ['Pennsylvania','Colorado','Tennessee','Maryland','Texas','Florida','Georgia','California','Florida',
+            'Connecticut','Ohio','Louisiana','']
+
+
+# In[126]:
+
+
+# show rows where Country is US and City is null
+advisor.loc[(advisor.Country == 'United States') & (advisor.City.isnull())]
+
+
+# In[129]:
+
+
+advisor.loc[(advisor.State.notnull()) & advisor.Country.isnull()]
+
+
+# In[119]:
+
+
+advisor.loc[:,['Country','City','State']]
+
+
+# In[177]:
+
+
+advisor=pd.read_csv('GRIC_Advisories_102617.csv')
+
+
+# In[176]:
+
+
+advisor_new = pd.merge(advisor, hc_city, how='left',on='City')
+
+
+# In[164]:
+
+
+advisor_new.head()
+
+
+# In[167]:
+
+
+col_adv=list(advisor_new.columns)[16:]
+advisor_new.drop(col_adv, axis=1, inplace=True)
+advisor_new.rename(columns={'Contractor_x':'Contractor', 'Employee_x':'Employee'}, inplace=True)
+advisor_new.head()
+
+
+# In[168]:
+
+
+advisor_new.to_csv('GRIC_Advisories_102617.csv',index=False)
+
+
+# In[130]:
+
+
+hc_raw = pd.read_excel('Headcount-OctHC 2017.xlsx',na_values=['NA'])
+
+
+# In[132]:
+
+
+hc_raw.groupby(['country','city'])['uid'].count()
+

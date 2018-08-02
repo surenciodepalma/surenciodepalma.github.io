@@ -43,7 +43,7 @@ hc.city = hc.city.str.replace('Universal City','Los Angeles')
 # In[11]:
 
 
-adv = pd.read_csv('GRIC_Advisories_101217.csv')
+adv = pd.read_csv('Advisories_101217.csv')
 adv.head()
 
 
@@ -210,13 +210,13 @@ adv_new.isnull().sum()
 # In[125]:
 
 
-adv_new.to_csv('GRIC_Advisories_102617.csv',index=False,date_format='mm/dd/yyyy')
+adv_new.to_csv('Advisories_102617.csv',index=False,date_format='mm/dd/yyyy')
 
 
 # In[58]:
 
 
-advisor = pd.read_csv('GRIC_Advisories_102617.csv')
+advisor = pd.read_csv('Advisories_102617.csv')
 advisor.head()
 
 
@@ -250,7 +250,7 @@ advisor[advisor.isnull().any(axis=1)]
 # In[95]:
 
 
-advisor = pd.read_csv('GRIC_Advisories_102617.csv')
+advisor = pd.read_csv('Advisories_102617.csv')
 
 
 # In[100]:
@@ -332,7 +332,7 @@ advisor.loc[:,['Country','City','State']]
 # In[177]:
 
 
-advisor=pd.read_csv('GRIC_Advisories_102617.csv')
+advisor=pd.read_csv('Advisories_102617.csv')
 
 
 # In[176]:
@@ -359,7 +359,7 @@ advisor_new.head()
 # In[168]:
 
 
-advisor_new.to_csv('GRIC_Advisories_102617.csv',index=False)
+advisor_new.to_csv('Advisories_102617.csv',index=False)
 
 
 # In[130]:
